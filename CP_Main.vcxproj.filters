@@ -259,9 +259,6 @@
     <ClCompile Include="src\OptionsSheet.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="src\OptionsStats.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="src\OptionsTypes.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -275,9 +272,6 @@
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\Popup.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\PowerManager.cpp">
       <Filter>src</Filter>
     </ClCompile>
     <ClCompile Include="src\ProcessPaste.cpp">
@@ -775,9 +769,6 @@
     <ClInclude Include="src\OptionsSheet.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="src\OptionsStats.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="src\OptionsTypes.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -791,9 +782,6 @@
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\Popup.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="src\PowerManager.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="src\ProcessPaste.h">
@@ -1006,6 +994,7 @@
     </ClInclude>
     <ClInclude Include="src\RulerRichEditCtrl\resource.h" />
     <ClInclude Include="src\ModernScrollBar.h" />
+    <ClInclude Include="diff src\OptionsSheet.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="CP_Main.rc">

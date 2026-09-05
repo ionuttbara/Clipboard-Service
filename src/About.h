@@ -26,7 +26,6 @@ public:
 	//{{AFX_DATA(CAbout)
 	enum { IDD = IDD_ABOUT };
 	CHyperLink	m_Link;
-	CHyperLink	m_HyperLink;
 	CHListBox	m_List;
 	//}}AFX_DATA
 

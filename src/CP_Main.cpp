@@ -565,15 +565,8 @@ void CCP_MainApp::LoadGlobalClips()
 
 void CCP_MainApp::StartStopServerThread()
 {
-	if(CGetSetOptions::GetDisableRecieve() == FALSE && CGetSetOptions::GetAllowFriends())
-	{
-		AfxBeginThread(MTServerThread, m_MainhWnd);
-	}
-	else
-	{
-		m_bExitServerThread = true;
-		closesocket(theApp.m_sSocket);
-	}
+	m_bExitServerThread = true;
+	closesocket(theApp.m_sSocket);
 }
 
 void CCP_MainApp::StopServerThread()

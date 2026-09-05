@@ -37,14 +37,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>false</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -56,13 +56,13 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseOfMfc>Dynamic</UseOfMfc>
     <CharacterSet>Unicode</CharacterSet>
-    <PlatformToolset>v145</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -623,13 +623,11 @@
     <ClCompile Include="src\OptionsKeyBoard.cpp" />
     <ClCompile Include="src\OptionsQuickPaste.cpp" />
     <ClCompile Include="src\OptionsSheet.cpp" />
-    <ClCompile Include="src\OptionsStats.cpp" />
     <ClCompile Include="src\OptionsTypes.cpp" />
     <ClCompile Include="src\OptionsUtilities.cpp" />
     <ClCompile Include="src\Path.cpp" />
     <ClCompile Include="src\PerfTimer.cpp" />
     <ClCompile Include="src\Popup.cpp" />
-    <ClCompile Include="src\PowerManager.cpp" />
     <ClCompile Include="src\ProcessPaste.cpp" />
     <ClCompile Include="src\ProgressWnd.cpp" />
     <ClCompile Include="src\QListCtrl.cpp" />
@@ -792,6 +790,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="diff src\OptionsSheet.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="src\About.h" />
     <ClInclude Include="src\Accels.h" />
@@ -891,13 +890,11 @@
     <ClInclude Include="src\OptionsKeyBoard.h" />
     <ClInclude Include="src\OptionsQuickPaste.h" />
     <ClInclude Include="src\OptionsSheet.h" />
-    <ClInclude Include="src\OptionsStats.h" />
     <ClInclude Include="src\OptionsTypes.h" />
     <ClInclude Include="src\OptionsUtilities.h" />
     <ClInclude Include="src\Path.h" />
     <ClInclude Include="src\PerfTimer.h" />
     <ClInclude Include="src\Popup.h" />
-    <ClInclude Include="src\PowerManager.h" />
     <ClInclude Include="src\ProcessPaste.h" />
     <ClInclude Include="src\ProgressWnd.h" />
     <ClInclude Include="src\QListCtrl.h" />

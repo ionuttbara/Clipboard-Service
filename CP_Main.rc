@@ -438,8 +438,6 @@ BEGIN
         MENUITEM "Import Clip(s)",              ID_FIRST_IMPORT
         MENUITEM "New Clip",                    ID_FIRST_NEWCLIP
         MENUITEM SEPARATOR
-        MENUITEM "Help",                        ID_FIRST_HELP
-        MENUITEM SEPARATOR
         MENUITEM "Connect To Clipboard",        ID_FIRST_TOGGLECONNECTCV
         MENUITEM "Save Current Clipboard",      ID_FIRST_SAVECURRENTCLIPBOARD
         MENUITEM SEPARATOR

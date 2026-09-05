@@ -39,7 +39,6 @@ BEGIN_MESSAGE_MAP(CMainFrame, CFrameWnd)
 	ON_COMMAND(ID_FIRST_SHOWQUICKPASTE, OnFirstShowquickpaste)
 	ON_COMMAND(ID_FIRST_TOGGLECONNECTCV, OnFirstToggleConnectCV)
 	ON_UPDATE_COMMAND_UI(ID_FIRST_TOGGLECONNECTCV, OnUpdateFirstToggleConnectCV)
-	ON_COMMAND(ID_FIRST_HELP, OnFirstHelp)
 	//}}AFX_MSG_MAP
 	ON_MESSAGE(WM_HOTKEY, OnHotKey)
 	ON_MESSAGE(WM_SHOW_TRAY_ICON, OnShowTrayIcon)
@@ -120,7 +119,6 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
         return  - 1;
     }
 
-	m_PowerManager.Start(m_hWnd);
 
     ////Center the main window so message boxes are in the center
     CRect rcScreen = DefaultMonitorRect();
@@ -972,8 +970,6 @@ void CMainFrame::OnClose()
     Log(_T("OnClose - after stop MainFrm thread"));
 
     theApp.BeforeMainClose();
-
-	m_PowerManager.Close();
 
     CFrameWnd::OnClose();
 }

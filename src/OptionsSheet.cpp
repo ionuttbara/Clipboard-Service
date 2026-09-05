@@ -7,10 +7,8 @@
 #include "OptionsKeyBoard.h"
 #include "OptionsGeneral.h"
 #include "OptionsQuickPaste.h"
-#include "OptionsStats.h"
 #include "OptionsTypes.h"
 #include "About.h"
-#include "OptionFriends.h"
 #include "OptionsCopyBuffers.h"
 #include "Misc.h"
 #include "QuickPasteKeyboard.h"
@@ -35,10 +33,8 @@ COptionsSheet::COptionsSheet(LPCTSTR pszCaption, CWnd* pParentWnd, UINT iSelectP
 	m_pGeneralOptions = NULL;
 	//m_pQuickPasteOptions = NULL;
 	m_pCopyBuffers = NULL;
-	m_pStats = NULL;
 	m_pTypes = NULL;
 	m_pAbout = NULL;
-	m_pFriends = NULL;
 	m_pCopyBuffers = NULL;
 	m_pQuickPasteShortCuts = NULL;
 	
@@ -53,7 +49,6 @@ COptionsSheet::COptionsSheet(LPCTSTR pszCaption, CWnd* pParentWnd, UINT iSelectP
 	m_pQuickPasteShortCuts = new CQuickPasteKeyboard;
 
 	m_pCopyBuffers = new COptionsCopyBuffers;
-	m_pStats = new COptionsStats;
 	m_pTypes = new COptionsTypes;
 	m_pAbout = new CAbout;
 
@@ -63,15 +58,7 @@ COptionsSheet::COptionsSheet(LPCTSTR pszCaption, CWnd* pParentWnd, UINT iSelectP
 	AddPage(m_pCopyBuffers);
 	//AddPage(m_pQuickPasteOptions);
 	AddPage(m_pQuickPasteShortCuts);
-	if(CGetSetOptions::GetAllowFriends())
-	{
-		m_pFriends = new COptionFriends;
-		AddPage(m_pFriends);
-	}
-	AddPage(m_pStats);
 	AddPage(m_pAbout);
-
-	
 }
 
 COptionsSheet::~COptionsSheet()
@@ -80,10 +67,8 @@ COptionsSheet::~COptionsSheet()
 	delete m_pKeyBoardOptions;
 	//delete m_pQuickPasteOptions;
 	delete m_pCopyBuffers;
-	delete m_pStats;
 	delete m_pTypes;
 	delete m_pAbout;	
-	delete m_pFriends;
 	delete m_pUtilites;
 	delete m_pQuickPasteShortCuts;	
 }

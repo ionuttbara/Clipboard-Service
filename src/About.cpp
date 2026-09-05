@@ -34,15 +34,6 @@ CAbout::~CAbout()
 {
 }
 
-void CAbout::DoDataExchange(CDataExchange* pDX)
-{
-	CPropertyPage::DoDataExchange(pDX);
-	//{{AFX_DATA_MAP(CAbout)
-	DDX_Control(pDX, IDC_STATIC_LINK, m_Link);
-	DDX_Control(pDX, IDC_HYPER_LINK, m_HyperLink);
-	DDX_Control(pDX, IDC_LIST, m_List);
-	//}}AFX_DATA_MAP
-}
 
 
 BEGIN_MESSAGE_MAP(CAbout, CPropertyPage)
@@ -57,7 +48,7 @@ BOOL CAbout::OnInitDialog()
 {
 	CPropertyPage::OnInitDialog();
 
-	m_List.AddString(_T("Ditto"));
+	m_List.AddString(_T("Clipboard Service, an Ditto Fork"));
 
 	auto runningVersion = GetRunningVersion();
 	CString cs = GetVersionString(runningVersion);
@@ -88,9 +79,11 @@ BOOL CAbout::OnInitDialog()
 
 	m_List.AddString(_T("Credits"));
 	
-	cs = "    Authors - Scott Brogden, sabrogden@users.sourceforge.net";
+	cs = "    Authors original project - Scott Brogden, sabrogden@users.sourceforge.net";
 	m_List.AddString(cs);
 	cs = "            - Kevin Edwards, ingenuus@users.sourceforge.net";
+	m_List.AddString(cs);
+	cs = "    Author of this fork: Ionut Bara, ionutbaraooo@gmail.com";
 	m_List.AddString(cs);
 
 	m_List.AddString(_T(""));
@@ -108,23 +101,22 @@ BOOL CAbout::OnInitDialog()
 
 	CRect rect;
 	GetClientRect(rect);
-	
 	rect.bottom -= 30;
-	
-	m_List.MoveWindow(rect);
-
 	rect.top = rect.bottom + 10;
 	rect.bottom = rect.top + 30;
-	
-	m_HyperLink.MoveWindow(rect);
-
-	m_HyperLink.SetURL(_T("mailto:sabrogden@gmail.com"));
-
-	rect.top = rect.bottom + 5;
-	rect.bottom = rect.top + 5;
 	m_Link.MoveWindow(rect);
-	m_Link.SetURL(_T("https://ditto-cp.sourceforge.io/"));
+	m_Link.SetWindowText(_T("Ditto Home Page"));
+	m_Link.SetURL(_T("https://github.com/ionuttbara/Clipboard-Service"));
 		
 	return TRUE;  // return TRUE unless you set the focus to a control
 	              // EXCEPTION: OCX Property Pages should return FALSE
+}
+
+void CAbout::DoDataExchange(CDataExchange* pDX)
+{
+	CPropertyPage::DoDataExchange(pDX);
+	//{{AFX_DATA_MAP(CAbout)
+	DDX_Control(pDX, IDC_STATIC_LINK, m_Link);
+	DDX_Control(pDX, IDC_LIST, m_List);
+	//}}AFX_DATA_MAP
 }

@@ -5,7 +5,6 @@
 #include "ToolTipEx.h"
 #include "MainFrmThread.h"
 #include "ClipboardSaveRestore.h"
-#include "PowerManager.h"
 #include "DittoPopupWindow.h"
 #include "NTray.h"
 #include "EditFrameWnd.h"
@@ -74,7 +73,6 @@ public:
 	CPropertySheet *m_pOptions;
 	int m_doubleClickGroupId;
 	DWORD m_doubleClickGroupStartTime;
-	CPowerManager m_PowerManager;
 	int m_startupScreenWidth;
 	int m_startupScreenHeight;
     CRichEditCtrlEx m_richEditTextConverter;
