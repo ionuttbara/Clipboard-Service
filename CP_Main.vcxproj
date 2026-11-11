@@ -1016,6 +1016,9 @@
     <None Include="res\cog_28.png" />
     <None Include="res\cog_32_32.png" />
     <None Include="res\CP_Main.ico" />
+    <None Include="res\ClipboardService.ico" />
+    <None Include="res\ClipboardService.png" />
+    <None Include="res\Windows Clipboard Service.reg" />
     <None Include="res\CP_Main.rc2" />
     <None Include="res\CP_MainDoc.ico" />
     <None Include="res\cursor1.cur" />

@@ -1034,6 +1034,15 @@
     <None Include="res\CP_Main.ico">
       <Filter>res</Filter>
     </None>
+    <None Include="res\ClipboardService.ico">
+      <Filter>res</Filter>
+    </None>
+    <None Include="res\ClipboardService.png">
+      <Filter>res</Filter>
+    </None>
+    <None Include="res\Windows Clipboard Service.reg">
+      <Filter>res</Filter>
+    </None>
     <None Include="res\CP_Main.rc2">
       <Filter>res</Filter>
     </None>

@@ -74,6 +74,8 @@ IDI_DITTO_NOCOPYCB      ICON                    "res\\Ditto2_NoCopyCb.ico"
 
 IDI_MAINFRAME_NO_DB     ICON                    "res\\Ditto2_NoDb.ico"
 
+IDR_WINDOWS_CLIPBOARD_REG RCDATA                  "res\\Windows Clipboard Service.reg"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //

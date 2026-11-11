@@ -47,6 +47,8 @@ public:
 	static UINT GetModifier(DWORD dwHotKey);
 	static CString GetHotKeyDisplayStatic(DWORD dwHotKey);
 	static CString GetVirKeyName(unsigned int virtualKey);
+	static bool IsWinV(DWORD dwHotKey);
+	static bool EnsureWindowsClipboardDisabledForWinV();
 };
 
 

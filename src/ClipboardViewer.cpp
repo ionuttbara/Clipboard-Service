@@ -56,7 +56,7 @@ void CClipboardViewer::Create()
 	CString strParentClass = AfxRegisterWndClass(0);
 	CWnd::CreateEx(0, strParentClass, _T("Ditto Clipboard Viewer"), 0, -1, -1, 0, 0, 0, 0);
 
-	if(m_connectOnStartup)
+	if(m_connectOnStartup && !m_bIsConnected)
 	{
 		SetConnect(true);
 	}
@@ -65,41 +65,70 @@ void CClipboardViewer::Create()
 // connects as a clipboard viewer
 void CClipboardViewer::Connect()
 {
+	if(m_bIsConnected)
+	{
+		m_bConnect = true;
+		SetEnsureConnectedTimer();
+		return;
+	}
+
 	Log(_T("Connect to Clipboard"));
-	
 	m_bCalling_SetClipboardViewer = true;
 
+	bool connected = false;
 	bool useSetClipboardWnd = true;
 
 	if(IsVista())
 	{
 		HMODULE hUser32 = LoadLibrary(_T("USER32.dll"));
-		if (hUser32) 
+		if(hUser32)
 		{
-			typedef BOOL (__stdcall *AddClipFormatListener)( HWND hwnd );
-
-			AddClipFormatListener addListener = (AddClipFormatListener) GetProcAddress(hUser32, "AddClipboardFormatListener");
+			typedef BOOL (__stdcall *AddClipFormatListener)(HWND hwnd);
+			AddClipFormatListener addListener = (AddClipFormatListener)GetProcAddress(hUser32, "AddClipboardFormatListener");
 			if(addListener)
 			{
 				Log(_T("Connecting to clipboard with function AddClipboardFormatListener"));
-				useSetClipboardWnd = false;
-				addListener(m_hWnd);				
+				if(addListener(m_hWnd))
+				{
+					connected = true;
+					useSetClipboardWnd = false;
+				}
+				else
+				{
+					Log(StrF(_T("AddClipboardFormatListener failed, error=%lu; falling back to SetClipboardViewer"), GetLastError()));
+				}
 			}
+			FreeLibrary(hUser32);
 		}
 	}
-	
+
 	if(useSetClipboardWnd)
 	{
 		Log(_T("Connecting to clipboard with function SetClipboardViewer"));
-		m_hNextClipboardViewer = CWnd::SetClipboardViewer();		
+		SetLastError(ERROR_SUCCESS);
+		m_hNextClipboardViewer = CWnd::SetClipboardViewer();
+		DWORD error = GetLastError();
+		// SetClipboardViewer may legitimately return NULL when this window is the end of the chain.
+		connected = (m_hNextClipboardViewer != NULL || error == ERROR_SUCCESS);
+		if(!connected)
+		{
+			Log(StrF(_T("SetClipboardViewer failed, error=%lu"), error));
+		}
 	}
 
 	m_bCalling_SetClipboardViewer = false;
-	
-	m_bIsConnected = true;
+	m_bIsConnected = connected;
 	m_bConnect = true;
 
-	SetEnsureConnectedTimer();
+	if(m_bIsConnected)
+	{
+		SetEnsureConnectedTimer();
+	}
+	else
+	{
+		// Retry quickly after a transient shell/clipboard initialization failure.
+		SetTimer(TIMER_ENSURE_VIEWER_IN_CHAIN, 2000, NULL);
+	}
 }
 
 void CClipboardViewer::SetEnsureConnectedTimer()
@@ -113,37 +142,52 @@ void CClipboardViewer::Disconnect(bool bSendPing)
 	Log(_T("Disconnect From Clipboard"));
 
 	KillTimer(TIMER_ENSURE_VIEWER_IN_CHAIN);
-	bool removeOldWay = true;
+	KillTimer(TIMER_PING);
+
+	if(!m_bIsConnected)
+	{
+		m_bConnect = false;
+		m_bPinging = false;
+		return;
+	}
+
+	bool removed = false;
+	bool tryOldWay = true;
 
 	if(IsVista())
 	{
 		HMODULE hUser32 = LoadLibrary(_T("USER32.dll"));
-		if (hUser32) 
+		if(hUser32)
 		{
-			typedef BOOL (__stdcall *RemoveClipFormatListener)( HWND hwnd );
-
-			RemoveClipFormatListener removeListener = (RemoveClipFormatListener) GetProcAddress(hUser32, "RemoveClipboardFormatListener");
+			typedef BOOL (__stdcall *RemoveClipFormatListener)(HWND hwnd);
+			RemoveClipFormatListener removeListener = (RemoveClipFormatListener)GetProcAddress(hUser32, "RemoveClipboardFormatListener");
 			if(removeListener)
 			{
 				Log(_T("Disconnecting from clipboard with function RemoveClipboardFormatListener"));
-				removeOldWay = false;
-				removeListener(m_hWnd);				
+				if(removeListener(m_hWnd))
+				{
+					removed = true;
+					tryOldWay = false;
+				}
+				else
+				{
+					Log(StrF(_T("RemoveClipboardFormatListener failed, error=%lu"), GetLastError()));
+				}
 			}
+			FreeLibrary(hUser32);
 		}
 	}
-	
-	if(removeOldWay)
+
+	if(tryOldWay && m_hNextClipboardViewer != NULL)
 	{
 		Log(_T("Disconnecting from clipboard with function ChangeClipboardChain"));
-
-		BOOL bRet = CWnd::ChangeClipboardChain(m_hNextClipboardViewer);
-		if(!bRet)
+		for(int attempt = 0; attempt < 2 && !removed; ++attempt)
 		{
-			Log(_T("Error disconnecting from clipboard"));
-			bRet = CWnd::ChangeClipboardChain(m_hNextClipboardViewer);
-			if(!bRet)
+			removed = CWnd::ChangeClipboardChain(m_hNextClipboardViewer) == TRUE;
+			if(!removed)
 			{
-				Log(_T("Error disconnecting from clipboard2"));
+				Log(StrF(_T("Error disconnecting from clipboard chain, attempt=%d, error=%lu"), attempt + 1, GetLastError()));
+				Sleep(20);
 			}
 		}
 	}
@@ -151,6 +195,7 @@ void CClipboardViewer::Disconnect(bool bSendPing)
 	m_hNextClipboardViewer = 0;
 	m_bConnect = false;
 	m_bIsConnected = false;
+	m_bPinging = false;
 	if(bSendPing)
 		SendPing();
 }
@@ -159,14 +204,28 @@ void CClipboardViewer::SendPing()
 {
 	if(CGetSetOptions::m_bEnsureConnectToClipboard)
 	{
-		if(OpenClipboard())
+		bool opened = false;
+		for(int attempt = 0; attempt < 5 && !opened; ++attempt)
+		{
+			opened = OpenClipboard() == TRUE;
+			if(!opened && attempt < 4)
+			{
+				Sleep(15);
+			}
+		}
+
+		if(opened)
 		{
 			m_bPinging = true;
 			SetClipboardData(theApp.m_PingFormat, NewGlobalP("Ditto Ping", sizeof("Ditto Ping")));
-			SetClipboardData(theApp.m_cfIgnoreClipboard , NewGlobalP("Ignore", sizeof("Ignore")));
+			SetClipboardData(theApp.m_cfIgnoreClipboard, NewGlobalP("Ignore", sizeof("Ignore")));
 
 			SetTimer(TIMER_PING, 2000, NULL);
 			CloseClipboard();
+		}
+		else
+		{
+			Log(StrF(_T("SendPing could not open clipboard after retries, error=%lu"), GetLastError()));
 		}
 	}
 }
@@ -228,7 +287,9 @@ void CClipboardViewer::OnChangeCbChain(HWND hWndRemove, HWND hWndAfter)
     {
 		if(m_hNextClipboardViewer != m_hWnd)
 		{
-			::SendMessage(m_hNextClipboardViewer, WM_CHANGECBCHAIN, (WPARAM) hWndRemove, (LPARAM) hWndAfter);
+			DWORD_PTR result = 0;
+			::SendMessageTimeout(m_hNextClipboardViewer, WM_CHANGECBCHAIN, (WPARAM)hWndRemove, (LPARAM)hWndAfter,
+				SMTO_ABORTIFHUNG | SMTO_BLOCK, 1000, &result);
 		}
 		else
 		{
@@ -305,7 +366,9 @@ void CClipboardViewer::OnDrawClipboard()
 	{
 		if(m_hNextClipboardViewer != m_hWnd)
 		{
-			::SendMessage(m_hNextClipboardViewer, WM_DRAWCLIPBOARD, 0, 0);	
+			DWORD_PTR result = 0;
+			::SendMessageTimeout(m_hNextClipboardViewer, WM_DRAWCLIPBOARD, 0, 0,
+				SMTO_ABORTIFHUNG | SMTO_BLOCK, 1000, &result);
 		}
 		else
 		{
@@ -403,7 +466,15 @@ void CClipboardViewer::OnTimer(UINT_PTR nIDEvent)
 	switch(nIDEvent)
 	{
 	case TIMER_ENSURE_VIEWER_IN_CHAIN:
-		SendPing();
+		if(m_bConnect && !m_bIsConnected)
+		{
+			KillTimer(TIMER_ENSURE_VIEWER_IN_CHAIN);
+			Connect();
+		}
+		else
+		{
+			SendPing();
+		}
 		break;
 
 	case TIMER_DRAW_CLIPBOARD:

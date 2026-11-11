@@ -4,10 +4,239 @@
 #include "Misc.h"
 #include "SendKeys.h"
 #include "Accels.h"
+#include "../resource.h"
+#include <shellapi.h>
+
+#pragma comment(lib, "Advapi32.lib")
+#pragma comment(lib, "Shell32.lib")
 
 CHotKeys g_HotKeys;
 
 int CHotKey::m_nextId = 0;
+
+
+namespace
+{
+	bool QueryDwordValue(HKEY root, LPCTSTR subKey, LPCTSTR valueName, DWORD& value, bool force64BitView)
+	{
+		HKEY key = NULL;
+		REGSAM access = KEY_QUERY_VALUE;
+#ifdef KEY_WOW64_64KEY
+		if(force64BitView)
+		{
+			access |= KEY_WOW64_64KEY;
+		}
+#endif
+
+		LONG openResult = ::RegOpenKeyEx(root, subKey, 0, access, &key);
+#ifdef KEY_WOW64_64KEY
+		if(openResult == ERROR_INVALID_PARAMETER && force64BitView)
+		{
+			openResult = ::RegOpenKeyEx(root, subKey, 0, KEY_QUERY_VALUE, &key);
+		}
+#endif
+		if(openResult != ERROR_SUCCESS)
+		{
+			return false;
+		}
+
+		DWORD type = 0;
+		DWORD size = sizeof(value);
+		LONG queryResult = ::RegQueryValueEx(key, valueName, NULL, &type, reinterpret_cast<LPBYTE>(&value), &size);
+		::RegCloseKey(key);
+
+		return queryResult == ERROR_SUCCESS && type == REG_DWORD && size == sizeof(value);
+	}
+
+	bool RegistryKeyExists(HKEY root, LPCTSTR subKey, bool force64BitView)
+	{
+		HKEY key = NULL;
+		REGSAM access = KEY_QUERY_VALUE;
+#ifdef KEY_WOW64_64KEY
+		if(force64BitView)
+		{
+			access |= KEY_WOW64_64KEY;
+		}
+#endif
+
+		LONG result = ::RegOpenKeyEx(root, subKey, 0, access, &key);
+#ifdef KEY_WOW64_64KEY
+		if(result == ERROR_INVALID_PARAMETER && force64BitView)
+		{
+			result = ::RegOpenKeyEx(root, subKey, 0, KEY_QUERY_VALUE, &key);
+		}
+#endif
+		if(result == ERROR_SUCCESS)
+		{
+			::RegCloseKey(key);
+			return true;
+		}
+
+		// This is a protected HKLM branch on some Windows builds. If access is
+		// denied, conservatively treat the key as present so we do not incorrectly
+		// conclude that the Windows clipboard override is already complete.
+		if(result == ERROR_ACCESS_DENIED)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	bool SetCurrentUserClipboardHistoryDisabled()
+	{
+		HKEY key = NULL;
+		DWORD disposition = 0;
+		LONG createResult = ::RegCreateKeyEx(HKEY_CURRENT_USER, _T("Software\\Microsoft\\Clipboard"), 0, NULL,
+			REG_OPTION_NON_VOLATILE, KEY_SET_VALUE, NULL, &key, &disposition);
+		if(createResult != ERROR_SUCCESS)
+		{
+			Log(StrF(_T("Win+V integration: unable to open current-user clipboard registry key, error=%ld"), createResult));
+			return false;
+		}
+
+		DWORD disabled = 0;
+		LONG setResult = ::RegSetValueEx(key, _T("EnableClipboardHistory"), 0, REG_DWORD,
+			reinterpret_cast<const BYTE*>(&disabled), sizeof(disabled));
+		::RegCloseKey(key);
+
+		if(setResult != ERROR_SUCCESS)
+		{
+			Log(StrF(_T("Win+V integration: unable to disable current-user clipboard history, error=%ld"), setResult));
+			return false;
+		}
+		return true;
+	}
+
+	bool WindowsClipboardOverrideAlreadyApplied()
+	{
+		DWORD value = 1;
+		if(!QueryDwordValue(HKEY_CURRENT_USER, _T("Software\\Microsoft\\Clipboard"), _T("EnableClipboardHistory"), value, false) || value != 0)
+		{
+			return false;
+		}
+
+		value = 1;
+		if(!QueryDwordValue(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Microsoft\\PolicyManager\\default\\Experience\\AllowClipboardHistory"), _T("value"), value, true) || value != 0)
+		{
+			return false;
+		}
+
+		value = 1;
+		if(!QueryDwordValue(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Policies\\Microsoft\\Windows\\System"), _T("AllowCrossDeviceClipboard"), value, true) || value != 0)
+		{
+			return false;
+		}
+
+		value = 1;
+		if(!QueryDwordValue(HKEY_LOCAL_MACHINE, _T("SOFTWARE\\Policies\\Microsoft\\Windows\\System"), _T("AllowClipboardHistory"), value, true) || value != 0)
+		{
+			return false;
+		}
+
+		return !RegistryKeyExists(HKEY_LOCAL_MACHINE,
+			_T("SOFTWARE\\Microsoft\\WindowsRuntime\\ActivatableClassId\\Windows.ApplicationModel.Internal.DataTransfer.CloudClipboard"), true);
+	}
+
+	bool WriteEmbeddedWindowsClipboardRegistryFile(CString& regPath)
+	{
+		HINSTANCE instance = AfxGetInstanceHandle();
+		HRSRC resource = ::FindResource(instance, MAKEINTRESOURCE(IDR_WINDOWS_CLIPBOARD_REG), RT_RCDATA);
+		if(resource == NULL)
+		{
+			Log(StrF(_T("Win+V integration: registry resource not found, error=%lu"), ::GetLastError()));
+			return false;
+		}
+
+		HGLOBAL loadedResource = ::LoadResource(instance, resource);
+		DWORD resourceSize = ::SizeofResource(instance, resource);
+		const void* resourceData = loadedResource ? ::LockResource(loadedResource) : NULL;
+		if(resourceData == NULL || resourceSize == 0)
+		{
+			Log(_T("Win+V integration: unable to load embedded registry resource"));
+			return false;
+		}
+
+		TCHAR tempPath[MAX_PATH + 1] = { 0 };
+		DWORD tempPathLength = ::GetTempPath(_countof(tempPath), tempPath);
+		if(tempPathLength == 0 || tempPathLength >= _countof(tempPath))
+		{
+			Log(StrF(_T("Win+V integration: GetTempPath failed, error=%lu"), ::GetLastError()));
+			return false;
+		}
+
+		regPath.Format(_T("%sClipboardService-WindowsClipboard-%lu.reg"), tempPath, ::GetCurrentProcessId());
+		HANDLE file = ::CreateFile(regPath, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+			FILE_ATTRIBUTE_TEMPORARY | FILE_ATTRIBUTE_NOT_CONTENT_INDEXED, NULL);
+		if(file == INVALID_HANDLE_VALUE)
+		{
+			Log(StrF(_T("Win+V integration: unable to create temp .reg file, error=%lu"), ::GetLastError()));
+			return false;
+		}
+
+		DWORD bytesWritten = 0;
+		BOOL writeResult = ::WriteFile(file, resourceData, resourceSize, &bytesWritten, NULL);
+		if(writeResult)
+		{
+			::FlushFileBuffers(file);
+		}
+		::CloseHandle(file);
+
+		if(!writeResult || bytesWritten != resourceSize)
+		{
+			Log(StrF(_T("Win+V integration: unable to write complete temp .reg file, error=%lu"), ::GetLastError()));
+			::DeleteFile(regPath);
+			regPath.Empty();
+			return false;
+		}
+
+		return true;
+	}
+
+	bool RunWindowsClipboardRegistryFileElevated(const CString& regPath)
+	{
+		CString parameters;
+		parameters.Format(_T("/s \"%s\""), regPath.GetString());
+
+		SHELLEXECUTEINFO executeInfo = { 0 };
+		executeInfo.cbSize = sizeof(executeInfo);
+		executeInfo.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;
+		executeInfo.hwnd = g_HotKeys.m_hWnd;
+		executeInfo.lpVerb = _T("runas");
+		executeInfo.lpFile = _T("regedit.exe");
+		executeInfo.lpParameters = parameters;
+		executeInfo.nShow = SW_HIDE;
+
+		if(!::ShellExecuteEx(&executeInfo))
+		{
+			DWORD error = ::GetLastError();
+			Log(StrF(_T("Win+V integration: registry import was not started, error=%lu"), error));
+			return false;
+		}
+
+		bool success = false;
+		if(executeInfo.hProcess != NULL)
+		{
+			DWORD waitResult = ::WaitForSingleObject(executeInfo.hProcess, 60000);
+			if(waitResult == WAIT_OBJECT_0)
+			{
+				DWORD exitCode = 1;
+				if(::GetExitCodeProcess(executeInfo.hProcess, &exitCode))
+				{
+					success = (exitCode == 0);
+				}
+			}
+			else
+			{
+				Log(StrF(_T("Win+V integration: registry import wait ended with result=%lu"), waitResult));
+			}
+
+			::CloseHandle(executeInfo.hProcess);
+		}
+
+		return success;
+	}
+}
 
 CHotKey::CHotKey(CString name, DWORD defKey, bool bUnregOnShowDitto, HotKeyType hkType, CString description) 
 	: m_Name(name), 
@@ -169,6 +398,59 @@ UINT CHotKey::GetModifier(DWORD dwHotKey)
 	return uMod;
 }
 
+bool CHotKey::IsWinV(DWORD dwHotKey)
+{
+	if(LOBYTE(dwHotKey) != 'V')
+	{
+		return false;
+	}
+
+	return GetModifier(HIBYTE(dwHotKey)) == MOD_WIN;
+}
+
+bool CHotKey::EnsureWindowsClipboardDisabledForWinV()
+{
+	if(WindowsClipboardOverrideAlreadyApplied())
+	{
+		return true;
+	}
+
+	// Apply the per-user value from the non-elevated process first. This keeps HKCU
+	// correct even when UAC elevation uses credentials from a different administrator.
+	SetCurrentUserClipboardHistoryDisabled();
+
+	CString regPath;
+	if(!WriteEmbeddedWindowsClipboardRegistryFile(regPath))
+	{
+		return false;
+	}
+
+	Log(_T("Win+V integration: applying embedded Windows Clipboard Service.reg"));
+	bool importStartedAndCompleted = RunWindowsClipboardRegistryFileElevated(regPath);
+	::DeleteFile(regPath);
+
+	if(!importStartedAndCompleted)
+	{
+		return false;
+	}
+
+	DWORD_PTR messageResult = 0;
+	::SendMessageTimeout(HWND_BROADCAST, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(_T("Policy")),
+		SMTO_ABORTIFHUNG | SMTO_BLOCK, 1500, &messageResult);
+	::SendMessageTimeout(HWND_BROADCAST, WM_SETTINGCHANGE, 0, reinterpret_cast<LPARAM>(_T("Software\\Microsoft\\Clipboard")),
+		SMTO_ABORTIFHUNG | SMTO_BLOCK, 1500, &messageResult);
+
+	// Give Explorer and the shell clipboard components a short opportunity to release Win+V.
+	::Sleep(150);
+
+	bool applied = WindowsClipboardOverrideAlreadyApplied();
+	if(!applied)
+	{
+		Log(_T("Win+V integration: registry import completed but the expected values were not all observed"));
+	}
+	return applied;
+}
+
 void CHotKey::SetKey( DWORD key, bool bSave )
 {
 	if(m_Key == key)
@@ -201,6 +483,11 @@ bool CHotKey::SaveKey()
 
 BOOL CHotKey::ValidateHotKey(DWORD dwHotKey)
 {
+	if(IsWinV(dwHotKey))
+	{
+		EnsureWindowsClipboardDisabledForWinV();
+	}
+
 	ATOM id = ::GlobalAddAtom(_T("HK_VALIDATE"));
 	BOOL bResult = ::RegisterHotKey( g_HotKeys.m_hWnd,
 		id,
@@ -273,10 +560,28 @@ bool CHotKey::Register()
 		if(m_bIsRegistered == false)
 		{
 			ASSERT(g_HotKeys.m_hWnd);
-			m_bIsRegistered = ::RegisterHotKey(g_HotKeys.m_hWnd,
-				m_Atom,
-				GetModifier(),
-				LOBYTE(m_Key) ) == TRUE;
+
+			const int maxAttempts = IsWinV(m_Key) ? 8 : 2;
+			for(int attempt = 0; attempt < maxAttempts && !m_bIsRegistered; ++attempt)
+			{
+				::SetLastError(ERROR_SUCCESS);
+				m_bIsRegistered = ::RegisterHotKey(g_HotKeys.m_hWnd,
+					m_Atom,
+					GetModifier(),
+					LOBYTE(m_Key)) == TRUE;
+
+				if(!m_bIsRegistered)
+				{
+					DWORD error = ::GetLastError();
+					Log(StrF(_T("RegisterHotKey failed for %s, attempt=%d/%d, error=%lu"),
+						m_Name, attempt + 1, maxAttempts, error));
+
+					if(attempt + 1 < maxAttempts)
+					{
+						::Sleep(IsWinV(m_Key) ? 125 : 25);
+					}
+				}
+			}
 		}
 	}
 	else
@@ -438,6 +743,24 @@ void CHotKeys::SaveAllKeys()
 
 void CHotKeys::RegisterAll(bool bMsgOnError)
 {
+	bool needsWindowsClipboardOverride = false;
+	for(INT_PTR i = 0; i < GetSize(); ++i)
+	{
+		CHotKey* hotKey = ElementAt(i);
+		if(hotKey != NULL && CHotKey::IsWinV(hotKey->GetKey()))
+		{
+			needsWindowsClipboardOverride = true;
+			break;
+		}
+	}
+
+	if(needsWindowsClipboardOverride)
+	{
+		// Windows normally owns Win+V. Apply the bundled registry policy before
+		// any global hotkeys are registered so Clipboard Service can claim it.
+		CHotKey::EnsureWindowsClipboardDisabledForWinV();
+	}
+
 	CString str;
 	CHotKey* pHotKey;
 	INT_PTR count = GetSize();

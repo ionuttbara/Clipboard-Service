@@ -250,6 +250,7 @@
 #define IDB_PNG19                       386
 #define search_close_32                 386
 #define IDR_MENU_NO_DB                  387
+#define IDR_WINDOWS_CLIPBOARD_REG        394
 #define IDI_ICON3                       388
 #define IDI_MAINFRAME_NO_DB             388
 #define IDR_MENU2                       390
@@ -880,7 +881,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_3D_CONTROLS                     1
-#define _APS_NEXT_RESOURCE_VALUE        394
+#define _APS_NEXT_RESOURCE_VALUE        395
 #define _APS_NEXT_COMMAND_VALUE         33002
 #define _APS_NEXT_CONTROL_VALUE         2174
 #define _APS_NEXT_SYMED_VALUE           104

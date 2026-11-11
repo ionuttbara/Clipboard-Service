@@ -5,7 +5,7 @@
 
 Ditto is an extension to the standard windows clipboard. It saves each item placed on the clipboard allowing you access to any of those items at a later time. Ditto allows you to save any type of information that can be put on the clipboard, text, images, html, custom formats.
 
-1. [Portable](https://github.com/ionuttbara/Clipboard-Service/releases/download/ClipboardService1.0.zip)
+1. [Portable](https://github.com/ionuttbara/Clipboard-Service/releases/download/1.0/ClipboardService1.0.zip)
 
 
 
